@@ -7,9 +7,19 @@ library(dplyr)
 lpa_data <- read.csv("data/lpa_input.csv") |>
   select(-X)
 
-# also test with CH data only
+# also test with likert data only
 lpa_data_likert <- lpa_data |>
   filter(question_type == "likert")
+
+# and per wave
+lpa_data_wave1 <- lpa_data |>
+  filter(wave == "1")
+
+lpa_data_wave2 <- lpa_data |>
+  filter(wave == "2")
+
+lpa_data_wave3 <- lpa_data |>
+  filter(wave == "3")
 
 # set nr of models to test, 1:m models will be checked
 m <- 8
@@ -25,15 +35,24 @@ lpa_columns <- lpa_data |>
 lpa_columns_likert <- lpa_data_likert |>
   select(-id, -country, -wave, -question_type)
 
-perform_lpa_analysis <- function(lpa_columns, m, output_dir = "output", country = "") {
+lpa_columns_wave1 <- lpa_data_wave1 |>
+  select(-id, -country, -wave, -question_type)
+
+lpa_columns_wave2 <- lpa_data_wave2 |>
+  select(-id, -country, -wave, -question_type)
+
+lpa_columns_wave3 <- lpa_data_wave3 |>
+  select(-id, -country, -wave, -question_type)
+
+perform_lpa_analysis <- function(lpa_columns, m, output_dir = "output", filename = "") {
   # check if data is numeric as it should
   lpa_columns <- lpa_columns |>
     mutate_if(is.factor, as.numeric) |>
     mutate_if(is.character, as.numeric)
   
   # adjust filenames based on country
-  csv_filename <- if (country != "") paste0("lpa_fit_stats_", country, ".csv") else "lpa_fit_stats.csv"
-  png_filename <- if (country != "") paste0("lpa_fit_stats_elbow_", country, ".png") else "lpa_fit_stats_elbow.png"
+  csv_filename <- if (filename != "") paste0("lpa_fit_stats_", filename, ".csv") else "lpa_fit_stats.csv"
+  png_filename <- if (filename != "") paste0("lpa_fit_stats_elbow_", filename, ".png") else "lpa_fit_stats_elbow.png"
 
   # perform LPA using mclust
   lpa_results <- estimate_profiles(
@@ -104,7 +123,10 @@ perform_lpa_analysis <- function(lpa_columns, m, output_dir = "output", country 
 
 # running the function takes a couple of mins
 lpa_results <- perform_lpa_analysis(lpa_columns, m)
-lpa_results_likert <- perform_lpa_analysis(lpa_columns_likert, m, country = "wave2")
+lpa_results_likert <- perform_lpa_analysis(lpa_columns_likert, m, filename = "likert")
+lpa_results_w1 <- perform_lpa_analysis(lpa_columns_wave1, m, filename = "w1")
+lpa_results_w2 <- perform_lpa_analysis(lpa_columns_wave2, m, filename = "w2")
+lpa_results_w3 <- perform_lpa_analysis(lpa_columns_wave3, m, filename = "w3")
 
 ###################### select model ###########################
 
@@ -112,11 +134,27 @@ class_assignments_3 <- lpa_results_likert[[3]]$dff$Class
 class_assignments_5 <- lpa_results_likert[[5]]$dff$Class
 
 lpa_data <- lpa_data_likert |>
-  mutate(justice_class_3 = class_assignments_3) |>
+  mutate(justice_class = class_assignments_3) |>
   mutate(justice_class_5 = class_assignments_5)
 
 write.csv(lpa_data, "data/lpa_output.csv", row.names = TRUE)
 
+class_assignments_w1 <- lpa_results_w1[[3]]$dff$Class
+class_assignments_w2 <- lpa_results_w2[[3]]$dff$Class
+class_assignments_w3 <- lpa_results_w3[[3]]$dff$Class
+
+lpa_data_w1 <- lpa_data_wave1 |>
+  mutate(justice_class = class_assignments_w1)
+
+lpa_data_w2 <- lpa_data_wave2 |>
+  mutate(justice_class = class_assignments_w2)
+
+lpa_data_w3 <- lpa_data_wave3 |>
+  mutate(justice_class = class_assignments_w3)
+
+write.csv(lpa_data_w1, "data/lpa_output_w1.csv", row.names = TRUE)
+write.csv(lpa_data_w2, "data/lpa_output_w2.csv", row.names = TRUE)
+write.csv(lpa_data_w3, "data/lpa_output_w3.csv", row.names = TRUE)
 
 ################### check models 3 to 5 ######################
 
