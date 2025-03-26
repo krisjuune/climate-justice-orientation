@@ -54,20 +54,23 @@ just_columns = ['justice_gen_1',
                 'justice_sub_4',
                 ]
 
-likert_values_CH1 = ['Stimme überhaupt nicht zu', 
-                 'Stimme nicht zu', 
-                 'Stimme eher nicht zu', 
-                 'Stimme eher zu', 
-                 'Stimme zu', 
-                 'Stimme voll und ganz zu']
+likert_values_wave1 = ['Stimme überhaupt nicht zu', 
+                       'Stimme nicht zu', 
+                       'Stimme eher nicht zu', 
+                       'Stimme eher zu', 
+                       'Stimme zu', 
+                       'Stimme voll und ganz zu']
 
-likert_values_CH3 = []
-
-likert_values_CN3 = []
+likert_values_wave3 = ['Strongly disagree', 
+                       'Somewhat disagree', 
+                       'Disagree',
+                       'Somewhat agree',
+                       'Agree',
+                       'Strongly agree']
 
 numerical_values = [0, 1, 2, 3, 4, 5]
-likert_scale_CH1 = np.array(list(zip(likert_values_CH1, numerical_values)))
-justice_dict_CH1 = {**dict(likert_scale_CH1)}
+justice_dict_wave1 = {**dict(np.array(list(zip(likert_values_wave1, numerical_values))))}
+justice_dict_wave3 = {**dict(np.array(list(zip(likert_values_wave3, numerical_values))))}
 
 def apply_mapping(df, mapping_dict, column_pattern=None):
      # turn column_pattern into a list it already isn't
@@ -92,7 +95,12 @@ def apply_mapping(df, mapping_dict, column_pattern=None):
     
     return df
 
-df_justice = apply_mapping(df, justice_dict_CH1, column_pattern=['justice', 'rating'])
+for country, df in dataframes.items():
+    if country == "CH1":
+        df = apply_mapping(df, justice_dict_wave1, column_pattern = 'justice')
+    
+    elif country in ["CH3", "CN3"]:
+        df = apply_mapping(df, justice_dict_wave3, column_pattern = 'justice')
 
 # %% fix data types
 
@@ -180,7 +188,7 @@ for country, df in dataframes.items():
     df_selected = df[cols].copy()
     df_selected['country'] = country[:2]
     df_selected['wave'] = country[-1]
-    df_selected["question_type"] = np.where(df_selected["wave"] == 2, 
+    df_selected["question_type"] = np.where(df_selected["wave"] == "2", 
                                             "constant_sum", 
                                             "likert")
     
@@ -216,4 +224,8 @@ lpa_input = lpa_data[[
 lpa_data.to_csv("data/cjo_icc_input.csv")
 lpa_input.to_csv("data/lpa_input.csv")
 
-# %%
+# %% climate concern (waves 2 and 3)
+
+# %% values (wave 3)
+
+# %% general demographics (all waves)
