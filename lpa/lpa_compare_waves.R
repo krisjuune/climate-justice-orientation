@@ -163,6 +163,11 @@ wave3_data <- wave3_data |>
 # List of datasets for iteration
 datasets <- list(wave1 = wave1_data, wave2 = wave2_data, wave3 = wave3_data)
 
+lapply(names(datasets), function(name) {
+  prop_data <- as.data.frame(prop.table(table(datasets[[name]]$justice_class)))
+  write.csv(prop_data, file = paste0("output/", name, "_proportions.csv"), row.names = FALSE)
+})
+
 profile_plots_list <- lapply(datasets, function(data) {
   profile_plots = data |>
     group_by(justice_class) |>

@@ -141,13 +141,15 @@ write.csv(lpa_data, "data/lpa_output.csv", row.names = TRUE)
 
 class_assignments_w1 <- lpa_results_w1[[3]]$dff$Class
 class_assignments_w2 <- lpa_results_w2[[3]]$dff$Class
+class_assignments_w2_5 <- lpa_results_w2[[5]]$dff$Class
 class_assignments_w3 <- lpa_results_w3[[3]]$dff$Class
 
 lpa_data_w1 <- lpa_data_wave1 |>
   mutate(justice_class = class_assignments_w1)
 
 lpa_data_w2 <- lpa_data_wave2 |>
-  mutate(justice_class = class_assignments_w2)
+  mutate(justice_class = class_assignments_w2) |>
+  mutate(justice_class_5 = class_assignments_w2_5)
 
 lpa_data_w3 <- lpa_data_wave3 |>
   mutate(justice_class = class_assignments_w3)
