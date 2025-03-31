@@ -123,17 +123,21 @@ for country, df in dataframes.items():
     # filter out screened out respondents, incl failed attention checks
     if country == "CH1":
         df = df.dropna(subset=['canton'])
+        lower_threshold = df['duration_min'].quantile(0.025)
+        upper_threshold = df['duration_min'].quantile(0.975)
+        print(f"Lower threshold (lowest 5% quartile): {lower_threshold} minutes")
+        print(f"Upper threshold (highest 5% quartile): {upper_threshold} minutes")
+        df['speeder'] = df['duration_min'] < lower_threshold
+        df['laggard'] = df['duration_min'] > upper_threshold 
     else:
         df = df[(df['Q_TerminateFlag'] != "QuotaMet")]
         df = df[(df['Q_TerminateFlag'] != "Screened")]
-
-    # speeders and laggards
-    lower_threshold = df['duration_min'].quantile(0.05)
-    upper_threshold = df['duration_min'].quantile(0.95)
-    print(f"Lower threshold (lowest 5% quartile): {lower_threshold} minutes")
-    print(f"Upper threshold (highest 5% quartile): {upper_threshold} minutes")
-    df['speeder'] = df['duration_min'] < lower_threshold
-    df['laggard'] = df['duration_min'] > upper_threshold 
+        lower_threshold = df['duration_min'].quantile(0.01)
+        upper_threshold = df['duration_min'].quantile(0.99)
+        print(f"Lower threshold (lowest 1% quartile): {lower_threshold} minutes")
+        print(f"Upper threshold (highest 1% quartile): {upper_threshold} minutes")
+        df['speeder'] = df['duration_min'] < lower_threshold
+        df['laggard'] = df['duration_min'] > upper_threshold 
 
     # inattentives based on justice section straightlining
     attention_mask = (df[just_columns].nunique(axis=1) == 1)
@@ -160,15 +164,6 @@ for country, df in dataframes.items():
 
     # Update the dataframe in the dictionary
     dataframes[country] = df
-
-# %% check data
-
-wave1_ch = dataframes["CH1"]
-wave2_us = dataframes["US2"]
-wave2_ch = dataframes["CH2"]
-wave2_cn = dataframes["CN2"]
-wave3_ch = dataframes["CH3"]
-wave3_cn = dataframes["CN3"]
 
 # %% clean data for LPA 
 
@@ -220,12 +215,143 @@ lpa_input = lpa_data[[
     'limitarian'
 ]]
 
-# %% 
+# %% save lpa data
+
 lpa_data.to_csv("data/cjo_icc_input.csv")
 lpa_input.to_csv("data/lpa_input.csv")
 
 # %% climate concern (waves 2 and 3)
 
+
+
 # %% values (wave 3)
+
+socio_econ_list = [
+    "lreco_1",
+    "lreco_2",
+    "lreco_3",
+]
+
+socio_cult_list = [
+    "galtan_1",
+    "galtan_2",
+    "net_zero_question"
+]
+
+socio_ecol_list = [
+    "socio_ecological_1",
+    "socio_ecological_2",
+    "climate_worried"
+]
+
+value_columns = socio_econ_list + socio_cult_list + socio_ecol_list
+
+reversed_scale_list = [
+    "lreco_1", 
+    "galtan_1",
+    "galtan_2",
+    "net_zero_question",
+    "socio_ecological_2"
+]
+
+five_point_list = [
+    "climate_worried"
+]
+
+likert_values_value_ques = [
+    'Completely disagree',
+    'Somewhat disagree',
+    'Disagree',
+    'Somewhat agree',
+    'Agree',
+    'Completely agree'
+]
+
+net_zero_translation = {
+    "Absolutely sufficient":"Completely agree",
+    "Sufficient":"Agree",
+    "Slightly sufficient":"Somewhat agree",
+    "Slightly insufficient":"Somewhat disagree",
+    "Insufficient":"Disagree",
+    "Absolutely insufficient":"Completely disagree"
+}
+
+for country, df in dataframes.items():
+    df = apply_mapping(df, net_zero_translation, column_pattern='net_zero')
+    dataframes[country] = df
+
+likert_values_five = [
+    "Not at all worried", 
+    "Not very worried",
+    "Somewhat worried",
+    "Very worried",
+    "Extremely worried"
+]
+
+numerical_values_normalised = [0, 0.2, 0.4, 0.6, 0.8, 1]
+numerical_values_reversed =  [1, 0.8, 0.6, 0.4, 0.2, 0]
+numerical_values_five = [0, 0.25, 0.5, 0.75, 1]
+
+values_dict = {**dict(np.array(list(zip(likert_values_value_ques, numerical_values_normalised))))}
+values_dict_reversed = {**dict(np.array(list(zip(likert_values_value_ques, numerical_values_reversed))))}
+values_dict_five = {**dict(np.array(list(zip(likert_values_five, numerical_values_five))))}
+
+def get_values_dict(column_name):
+    if column_name in reversed_scale_list:
+        return values_dict_reversed
+    elif column_name in five_point_list:
+        return values_dict_five
+    else:
+        return values_dict
+
+for country, df in dataframes.items():
+    # translate net zero question
+    df = apply_mapping(df, net_zero_translation, column_pattern='net_zero')
+    
+    for col in value_columns:
+        if col in df.columns:
+            df = apply_mapping(df, get_values_dict(col), column_pattern=col)
+            df[col] = df[col].replace(["Not sure", "Prefer not to say"], np.nan)
+
+    if set(socio_econ_list).issubset(df.columns):
+        df['lreco'] = df[socio_econ_list].apply(pd.to_numeric, errors='coerce').sum(axis=1)
+        df.loc[df[socio_econ_list].isnull().any(axis=1), 'lreco'] = np.nan
+    if set(socio_cult_list).issubset(df.columns):
+        df['galtan'] = df[socio_cult_list].apply(pd.to_numeric, errors='coerce').sum(axis=1)
+        df.loc[df[socio_cult_list].isnull().any(axis=1), 'galtan'] = np.nan
+    if set(socio_ecol_list).issubset(df.columns):
+        df['socio_ecol'] = df[socio_ecol_list].apply(pd.to_numeric, errors='coerce').sum(axis=1)
+        df.loc[df[socio_ecol_list].isnull().any(axis=1), 'socio_ecol'] = np.nan
+
+    dataframes[country] = df
+
+value_columns = value_columns + ["lreco", "galtan", "socio_ecol"]
+
+value_data = []
+
+for country, df in dataframes.items():
+    if country in ["CH3", "CN3"]:
+        cols = value_columns + ["id"]
+        df_selected = df[cols].copy()
+        df_selected['country'] = country[:2]
+
+        # append the new dataframe to the list
+        value_data.append(df_selected)
+
+value_data = pd.concat(value_data, ignore_index=True)
+
+# %% save value data 
+
+value_data.to_csv("data/value_data_wave3.csv")
+
+# %% check data
+
+wave1_ch = dataframes["CH1"]
+wave2_us = dataframes["US2"]
+wave2_ch = dataframes["CH2"]
+wave2_cn = dataframes["CN2"]
+wave3_ch = dataframes["CH3"]
+wave3_cn = dataframes["CN3"]
+
 
 # %% general demographics (all waves)
