@@ -4,7 +4,7 @@ library(tidyverse)
 library(ggplot2)
 library(dplyr)
 
-lpa_data <- read.csv("data/lpa_input.csv") |>
+lpa_data <- read.csv(here("data", "lpa_input.csv")) |>
   select(-X)
 
 # also test with likert data only

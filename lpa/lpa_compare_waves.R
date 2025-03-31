@@ -198,6 +198,8 @@ datasets_long <- bind_rows(
 raincloud_plot_waves <- plot_raincloud(datasets_long) +
   facet_wrap(~dataset, ncol = 3)
 
+combined_profile_plots
+raincloud_plot_waves
 
 ggsave(
   here("output", "lpa_raincloud_per_wave.png"),
