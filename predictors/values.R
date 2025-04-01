@@ -1,5 +1,6 @@
 library(dplyr)
 library(tidyr)
+library(tibble)
 library(readr)
 library(here)
 library(nnet)
@@ -30,37 +31,42 @@ merged_data <- lpa_data |>
   )
 
 run_model <- function(base_level) {
-  # Set base level
-  merged_data <- merged_data |> mutate(justice_class = relevel(justice_class, ref = base_level))
+  # set base
+  merged_data <- merged_data |> 
+    mutate(justice_class = relevel(justice_class, ref = base_level))
   
-  # Fit model
+  # run model
   model <- multinom(justice_class ~ lreco + galtan + socio_ecol, data = merged_data)
   
-  # Extract results
+  print(paste("Base level:", base_level))
+  print(exp(coefs))
+
   coefs <- coef(model)
   se <- summary(model)$standard.errors
   odds_ratios <- exp(coefs)
   lower_ci <- exp(coefs - 1.96 * se)
   upper_ci <- exp(coefs + 1.96 * se)
 
-  # Create plot data
-  data.frame(
-    group = rep(rownames(coefs), each = ncol(coefs)),
-    variable = rep(colnames(coefs), times = nrow(coefs)),
-    odds_ratio = as.vector(odds_ratios),
-    lower_ci = as.vector(lower_ci),
-    upper_ci = as.vector(upper_ci),
-    base_level = base_level
-  )
+  # create plot data
+  coefs_df <- data.frame(odds_ratios = as.vector(odds_ratios),
+                         lower_ci = as.vector(lower_ci),
+                         upper_ci = as.vector(upper_ci))
+
+  coefs_df$group <- rep(rownames(coefs), each = ncol(coefs))
+  coefs_df$variable <- rep(c("(Intercept)", "lreco", "galtan", "socio_ecol"), times = length(rownames(coefs)))
+  coefs_df |>
+    mutate(base_level = base_level)
 }
 
 base_levels <- c("Universalists", "Egalitarianists", "Utilitarianists")
-plot_data <- bind_rows(lapply(base_levels, run_model))
+plot_data <- bind_rows(lapply(base_levels, function(base_level) {
+  run_model(base_level)
+}))
 
-value_plot <- ggplot(plot_data, aes(x = variable, y = odds_ratio, color = group)) +
+value_plot <- ggplot(plot_data, aes(x = variable, y = odds_ratios, color = group)) +
   geom_point(size = 3, position = position_dodge(width = 0.5)) +
   geom_errorbar(aes(ymin = lower_ci, ymax = upper_ci),
-                width = 0.2,
+                width = 0.1,
                 position = position_dodge(width = 0.5)) +
   scale_y_log10(labels = label_number(accuracy = 0.01)) +
   scale_color_viridis_d(end = .8) +
