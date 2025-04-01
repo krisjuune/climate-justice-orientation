@@ -105,7 +105,7 @@ plot_raincloud <- function(data, main_text_size = 12) {
       adjust = 5,
       width = .6,
       .width = c(.5, .95),
-      density = "bounded"
+      density = "unbounded"
     ) +
     geom_boxplot(
       width = .15,
